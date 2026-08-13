@@ -2,797 +2,477 @@
 
 # GPU SPH Painting Simulation Engine
 
-### محرك أكاديمي متكامل لمحاكاة الطلاء والسوائل في الزمن الحقيقي داخل Unity
+### Real-time GPU fluid-and-paint simulation in Unity
 
-محاكاة جسيمية على الـGPU تجمع بين **Smoothed Particle Hydrodynamics (SPH)**، وديناميكيات الحبل والدلو، وترسيب الطلاء على أسطح متعددة، والجريان والجفاف والامتصاص، وبيئة رسم تفاعلية قابلة للضبط والحفظ.
+A custom academic simulation engine that models paint from a moving bucket, through GPU particle-based fluid dynamics, to deposition, spreading, drying, rewetting, color mixing, and runoff across multiple surfaces.
 
 ![Unity](https://img.shields.io/badge/Unity-2022.3.62f3-000000?logo=unity&logoColor=white)
 ![URP](https://img.shields.io/badge/Rendering-URP%2014.0.12-4C8BF5)
-![GPU Compute](https://img.shields.io/badge/Simulation-GPU%20Compute%20Shaders-6A5ACD)
-![C#](https://img.shields.io/badge/Language-C%23-512BD4?logo=csharp&logoColor=white)
-![HLSL](https://img.shields.io/badge/Shaders-HLSL-3B82F6)
-![Academic](https://img.shields.io/badge/Academic%20Project-Full%20Mark-success)
+![C%23](https://img.shields.io/badge/Runtime-C%23-512BD4?logo=csharp&logoColor=white)
+![HLSL](https://img.shields.io/badge/GPU-HLSL%20Compute%20Shaders-3B82F6)
+![SPH](https://img.shields.io/badge/Fluid-SPH-6A5ACD)
 
 </div>
 
----
+<p align="center">
+  <img src="media/hero-multicolor-result.png" alt="GPU SPH paint simulation result" width="900" />
+</p>
 
-## Table of Contents
-
-- [1. مقدمة عامة](#1-مقدمة-عامة)
-- [2. معمارية المشروع وهيكليته](#2-معمارية-المشروع-وهيكليته)
-- [3. الميزات والخصائص](#3-الميزات-والخصائص)
-- [4. التقنيات المستخدمة](#4-التقنيات-المستخدمة)
-- [5. التحديات التقنية أثناء التطوير](#5-التحديات-التقنية-أثناء-التطوير)
-- [6. التثبيت والتشغيل](#6-التثبيت-والتشغيل)
-- [7. الاختبارات والتحقق](#7-الاختبارات-والتحقق)
-- [8. الأداء والتحسينات المستقبلية](#8-الأداء-والتحسينات-المستقبلية)
-- [9. الجانب الأكاديمي](#9-الجانب-الأكاديمي)
-- [المساهمون](#contributors)
-- [10. الخاتمة](#10-الخاتمة)
-- [هيكل المجلدات](#هيكل-المجلدات)
-- [المشاهد المتاحة](#المشاهد-المتاحة)
-- [اختصارات التحكم](#اختصارات-التحكم)
-- [ملاحظات مهمة](#ملاحظات-مهمة)
+> **Portfolio showcase:** the current source repository is private. A short demo video and selected technical breakdowns will be published here. The project is an educational real-time simulation, not an industrial CFD solver.
 
 ---
 
-# 1. مقدمة عامة
+## Demo
 
-## نظرة عامة
+**Final edited video:** coming soon.
 
-**GPU SPH Painting Simulation Engine** هو مشروع أكاديمي لبناء منظومة تفاعلية تحاكي الطلاء منذ وجوده داخل دلو متحرك ومعلّق بحبل، مرورًا بخروجه من فتحة الدلو وسقوطه في الهواء، ثم اصطدامه بسطح الرسم وانتشاره وانزلاقه واختلاطه وجفافه وامتصاصه.
+The screenshots below are current showcase captures from different project iterations. They will be refreshed with clean final-build captures when the edited demo video is ready.
 
-لا يكتفي المشروع بإظهار جسيمات تسقط بصريًا، بل يحاول تمثيل سلسلة مترابطة من الظواهر:
+<p align="center">
+  <img src="media/swinging-bucket-result.png" alt="Painting produced by the swinging bucket" width="48%" />
+  <img src="media/environment-runoff.png" alt="Paint runoff from canvas to the environment" width="48%" />
+</p>
 
-1. ديناميكيات السائل داخل الوعاء.
-2. خروج السائل من فتحة سفلية أو عدة مخارج.
-3. تفاعل السائل مع حركة الدلو الخطية والدورانية.
-4. ديناميكيات الحبل والنواس والحامل.
-5. اصطدام جسيمات الطلاء بسطح الرسم.
-6. تحويل الجسيمات إلى طبقة طلاء قابلة للجريان.
-7. تأثير اللزوجة والتوتر السطحي والالتصاق والاحتكاك.
-8. الامتصاص والجفاف وإعادة الترطيب.
-9. خلط الألوان والطلاءات المختلفة.
-10. جريان الطلاء من حواف اللوحة إلى الطاولة والأرض.
+Recommended final video sequence:
 
-## المشكلة التي يحلها المشروع
-
-محاكاة الطلاء في الزمن الحقيقي أصعب من محاكاة الماء البسيط، لأن الطلاء قد يكون شديد اللزوجة أو شبه مائي، وقد يتصرف ككتلة ثقيلة أو كفيلم رقيق، ويتأثر بنوع السطح وميله ودرجة رطوبته. كما أن تنفيذ هذه الظواهر باستخدام أعداد كبيرة من الجسيمات على المعالج المركزي يؤدي بسرعة إلى انخفاض الأداء.
-
-لذلك يعتمد المشروع على **Compute Shaders** وتنفيذ متوازٍ على بطاقة الرسوميات، مع نموذج هجين يجمع بين الجسيمات ثلاثية الأبعاد في الدلو والهواء، وفيلم ثنائي الأبعاد فوق سطح الرسم.
-
-## الهدف الأكاديمي
-
-تم اختيار المشروع من أجل:
-
-- تطبيق مفاهيم الفيزياء العددية بدل استخدام مؤثر سائل جاهز فقط.
-- دراسة وتنفيذ **SPH — Smoothed Particle Hydrodynamics**.
-- بناء Neighbor Search مناسب للـGPU.
-- دمج أكثر من نظام فيزيائي داخل تجربة واحدة.
-- دراسة الفرق بين محاكاة الحجم السائل ومحاكاة الفيلم الرقيق.
-- إنشاء واجهة تسمح بالتجريب العلمي وتغيير القيم لحظيًا.
-- بناء مختبرات مستقلة لمقارنة SPH وPBF وحلول الأعداد العالية.
-
-## القيمة التي يقدمها المشروع
-
-- منصة تعليمية لفهم SPH وPBF والمحاكاة المتوازية.
-- بيئة تجريبية لدراسة أثر اللزوجة والضغط والتوتر السطحي.
-- أداة تفاعلية لمقارنة أنواع الطلاء والأسطح.
-- أساس قابل للتوسعة نحو VR والفنون الرقمية والتدريب.
-- مجموعة مشاهد بحثية تتدرج من Solver مباشر إلى محاكاة مليونية.
+1. Final paint result first.
+2. Bucket and rope motion.
+3. GPU liquid leaving one or more outlets.
+4. Impact and conversion to a surface film.
+5. Different paint/surface presets.
+6. Edge runoff to the support surface and floor.
+7. Image-to-paint import and profile/state saving.
+8. Runtime statistics, diagnostics, and experimental solver scenes.
 
 ---
 
-# 2. معمارية المشروع وهيكليته
+## What this project does
 
-## النمط المعماري
-
-المشروع لا يستخدم MVC تقليديًا؛ بل يعتمد **Modular Component Architecture** مع فصل واضح بين الفيزياء والعرض والأسطح والبيئة والواجهة والحفظ. هذا الفصل يسمح بتطوير Solver أوShader أوواجهة دون إعادة بناء المنظومة كاملة.
-
-```mermaid
-flowchart TD
-    UI[Control Panel & Profiles]
-    RIG[Rope and Bucket Rig]
-    SOLVER[GPU SPH Bucket Solver]
-    COMPUTE[Compute Shaders]
-    RENDER[Particle & Fluid Rendering]
-    CANVAS[Canvas Film Simulation]
-    ENV[Environment Paint Traces]
-    PROFILE[Profile Serialization]
-    LABS[Independent Fluid Labs]
-
-    UI --> RIG
-    UI --> SOLVER
-    UI --> CANVAS
-    UI --> ENV
-    UI --> PROFILE
-    RIG --> SOLVER
-    SOLVER --> COMPUTE
-    COMPUTE --> RENDER
-    SOLVER --> CANVAS
-    CANVAS --> ENV
-    PROFILE --> UI
-    LABS --> COMPUTE
-```
-
-## الطبقات الأساسية
-
-### طبقة الدلو والسائل
-
-المكوّن الرئيسي هو:
+The system simulates a complete interactive paint pipeline:
 
 ```text
-SPHGPUFrustumBucketSolver
+Moving bucket + rope rig
+        ↓
+3D GPU SPH fluid inside the bucket
+        ↓
+Bottom / side outlets and top spill
+        ↓
+Airborne particle stream
+        ↓
+Particle impact detection on the painting surface
+        ↓
+2D GPU wet-film simulation
+        ↓
+Spread / slope flow / absorption / drying / rewetting
+        ↓
+Edge drainage and environmental runoff
 ```
 
-وهو مسؤول عن إنشاء الجسيمات، إدارة حالاتها داخل الدلو وخارجه، بناء الشبكة المكانية، حساب الكثافة والضغط واللزوجة والتوتر السطحي، التصادم مع الوعاء، إدارة المخارج، وإرسال اصطدامات الطلاء إلى اللوحة.
+The main goal was not to use a ready-made fluid effect, but to build and integrate the simulation systems directly in Unity using C#, HLSL compute shaders, GPU buffers, and custom rendering.
 
-الحسابات الأساسية منفذة داخل:
+---
+
+## Technical highlights
+
+### GPU SPH bucket solver
+
+The primary painting scene uses a custom GPU SPH solver with:
+
+- GPU spatial grids for fluid, outside particles, and boundaries.
+- Density, pressure, acceleration, viscosity/XSPH-style smoothing, and integration passes.
+- Circular-frustum and box container support.
+- Moving-container response.
+- Boundary support and collision handling.
+- Surface-tension/cohesion controls.
+- Inside/outside particle state handling.
+- Indirect GPU particle rendering.
+
+The core compute pipeline is implemented in:
 
 ```text
 Assets/Resources/SPH/SPHFluidFrustumGPU.compute
 ```
 
-### طبقة الحبل والحامل
+### Multi-outlet and stream system
+
+<p align="center">
+  <img src="media/multi-outlet-editor.png" alt="Runtime outlet editor" width="48%" />
+  <img src="media/multi-outlet-flow.png" alt="Multiple paint streams" width="48%" />
+</p>
+
+
+The bucket supports more than a single fixed hole:
+
+- Bottom and side outlets.
+- Runtime outlet creation/removal/editing.
+- Per-outlet radius and flow controls.
+- Open/close control for individual or all outlets.
+- Top-spill mode.
+- Continuous-nozzle transition controls.
+- Controlled stream-emitter controls.
+- Optional outside-only wind response.
+
+### Hybrid 3D → 2D paint model
+
+A major design decision was to avoid keeping every deposited paint particle alive indefinitely.
+
+Instead, the system uses:
 
 ```text
-SPHMassSpringBucketRig
+3D SPH particles in the bucket and air
+                    ↓
+      GPU impact/deposition stage
+                    ↓
+2D paint film on the target surface
 ```
 
-تستخدم نموذج Mass–Spring لتمثيل طول الحبل ومرونته وتخميده والتوائه وحركة النواس والحزام الثلاثي والتحكم اليدوي بالدلو.
+This makes it practical to model longer-lived surface behavior such as drying and absorption without representing the entire painted layer as persistent 3D particles.
 
-### طبقة سطح الرسم
+### GPU surface-film simulation
+
+The painting surface keeps GPU textures/state for properties including paint color, thickness, wetness, material behavior, absorbed pigment, and dry relief.
+
+The film pipeline includes kernels for:
+
+- Impact detection.
+- Paint deposition.
+- Film flux calculation.
+- Film advection/application.
+- Coverage statistics.
+- Edge spill drainage.
+- Image-to-paint import.
+- Export composition.
+
+Implemented mainly in:
 
 ```text
-SPHGPUCanvasSurface
-SPHCanvasPaint.compute
+Assets/Resources/SPH/SPHCanvasPaint.compute
+Assets/Scripts/Runtime/PaintingSystem/Canvas/SPHGPUCanvasSurface.cs
 ```
 
-تحوّل اصطدامات الجسيمات إلى فيلم ثنائي الأبعاد على الـGPU يحتوي على اللون والسماكة والرطوبة والامتصاص واللزوجة والتماسك والجفاف والجريان على الميل والانسكاب من الحواف.
+### Paint behavior presets
 
-### طبقة البيئة
+The interactive control system includes presets for:
 
-```text
-SPHEnvironmentPaintTraces
-```
+- Line painting.
+- Extra watery paint.
+- Watery/flowing paint.
+- Normal paint.
+- Thick paint.
+- Hybrid thick paint.
 
-تستقبل الطلاء على السطح الأبيض والأرض، وتعرض آثار البيئة وشلالات الحواف وانسكاب الطلاء من لوحة الرسم.
+The parameters remain editable at runtime for experimentation.
 
-### طبقة العرض
+### Surface-dependent behavior
 
-تستخدم المنظومة عدة Shaders، من أهمها:
+<p align="center">
+  <img src="media/runtime-control-panel.png" alt="Runtime paint and surface controls" width="48%" />
+  <img src="media/watery-metal-surface.png" alt="Watery paint behavior on a metal surface" width="48%" />
+</p>
 
-```text
-SPHParticleIndirect.shader
-SPHSmoothFluidSurface.shader
-SPHCanvasDisplay.shader
-SPHEnvironmentPaintTrace.shader
-SPHEdgeWaterfall.shader
-SPHBucketMultiOutletURP.shader
-```
 
-### طبقة الواجهة والتحكم
+The painting model supports separate material behavior for:
 
-```text
-SPHControlPanel
-```
+- Canvas.
+- Paper.
+- Wood.
+- Metal.
 
-تتحكم في إعدادات السائل والتدفق والسطح والدلو والحبل والرندر والبيئة والكاميرا والبروفايلات والإحصاءات.
+Surface selection changes parameters such as absorption, flow, friction/slip behavior, drying, and visual response instead of treating every surface identically.
 
-### طبقة البروفايلات
+### Drying, absorption, layering, and rewetting
 
-```text
-SPHSimulationProfiles.cs
-SPHControlPanel.cs
-```
+<p align="center">
+  <img src="media/surface-layering-closeup.png" alt="Layered paint close-up" width="48%" />
+  <img src="media/wet-paint-flow.png" alt="Wet paint continuing to flow after impact" width="48%" />
+</p>
 
-توفّر مكتبة تصل إلى 20 خانة، مع حفظ الإعدادات فقط أوحفظ Full State، ووصفات مستقلة لكل نوع طلاء وسطح. يتم التخزين بصيغة JSON في:
 
-```text
-Application.persistentDataPath/PaintSimulationProfiles.json
-```
+The film system contains configurable models for:
 
-## دورة البيانات
+- Wet-film spreading.
+- Slope-driven flow.
+- Retained flow trails.
+- Absorption and absorption capacity.
+- Drying and thick-film retention.
+- Dry-film relief.
+- Rewetting.
+- Wet-over-dry layering.
+- Overcoat retention.
+
+These are artistic/numerical approximations intended for a real-time simulation, not a chemical model of industrial paint.
+
+### Image-to-paint import
+
+<p align="center">
+  <img src="media/watercolor-effect.png" alt="Watercolor-style wet paint preset" width="48%" />
+  <img src="media/spiral-painting.png" alt="Layered spiral painting result" width="48%" />
+</p>
+
+
+A user-selected image can be used as a visual background or converted into simulated paint.
+
+Supported import modes include:
+
+- Exact Paint.
+- Artistic Layers.
+- Dripping Paint.
+
+Artistic presets include balanced painting, watery wash, heavy impasto, dripping artwork, and mixed media.
+
+### Environmental runoff
+
+Paint can continue beyond the main canvas through a separate GPU environment-trace system:
+
+- Canvas edge drips.
+- Hanging streams.
+- Support-table film/runoff.
+- Floor film/runoff.
+- Environment impact deposition.
+
+### Rope and bucket dynamics
+
+The bucket is integrated with a custom interaction rig that includes:
+
+- Mass-spring rope behavior.
+- Damping and torsion controls.
+- Three-point suspension/harness option.
+- Pendulum/orbital launch presets.
+- Spin and kick controls.
+- Mouse drag-and-release launch.
+- Manual bucket control.
+- Analytic bucket/surface collision handling.
+
+### Camera and presentation controls
+
+The main scene supports:
+
+- Perspective, front, side, and top views.
+- Follow mode.
+- Free camera.
+- Normal and cinematic free-camera movement.
+- Smooth camera transitions.
+
+### Profiles and experiment state
+
+The control system includes a 20-slot profile library with two levels of persistence:
+
+- **Settings-only profiles** for paint/solver parameters.
+- **Full-state profiles** that can also capture layout/runtime state and the current GPU paint film.
+
+Profiles are versioned and stored locally using JSON, while full film snapshots are stored separately.
+
+---
+
+## Experimental solver scenes
+
+The repository snapshot also contains separate solver scenes created during development for tuning, comparison, and scaling experiments. These scenes are **secondary engineering experiments**, not headline performance benchmarks for the painting system.
+
+In the current tested build:
+
+- Around **~100K particles** gave the best balance of responsiveness and fluid stability in the heavier experimental scenes.
+- Around **~250K particles** was still useful for performance/scaling experiments on the tested hardware, but fluid stability was less consistent.
+- Larger code-configurable budgets exist in some experimental scenes, but they are intentionally **not presented as validated real-time performance claims**.
+
+The main portfolio focus remains the integrated painting pipeline: GPU SPH inside the moving bucket and in the air, followed by the GPU surface-film simulation after impact.
+
+---
+
+## Architecture
 
 ```mermaid
-sequenceDiagram
-    participant UI as Control Panel
-    participant Rig as Rope & Bucket Rig
-    participant GPU as GPU SPH Solver
-    participant Canvas as Canvas Film
-    participant Env as Environment
+flowchart TD
+    UI[SPHControlPanel\nRuntime experimentation UI]
+    RIG[SPHMassSpringBucketRig\nRope + bucket motion]
+    SOLVER[SPHGPUFrustumBucketSolver\n3D GPU SPH]
+    COMPUTE[SPHFluidFrustumGPU.compute]
+    CANVAS[SPHGPUCanvasSurface\n2D GPU paint film]
+    FILM[SPHCanvasPaint.compute]
+    ENV[SPHEnvironmentPaintTraces\nRunoff + floor/table traces]
+    CAMERA[SPHCameraViewController]
+    PROFILE[Profile / state persistence]
+    LABS[Experimental solver scenes]
 
-    UI->>Rig: Update rope and motion parameters
-    UI->>GPU: Update fluid and outlet parameters
-    Rig->>GPU: Bucket transform and velocity
-    GPU->>GPU: Hash, density, pressure, viscosity, integration
-    GPU->>Canvas: Particle impacts
-    Canvas->>Canvas: Deposit, spread, flow, dry, absorb
-    Canvas->>Env: Edge spill and paint traces
-    Env->>Env: Table and floor accumulation
+    UI --> RIG
+    UI --> SOLVER
+    UI --> CANVAS
+    UI --> CAMERA
+    UI --> PROFILE
+    RIG --> SOLVER
+    SOLVER --> COMPUTE
+    SOLVER --> CANVAS
+    CANVAS --> FILM
+    CANVAS --> ENV
+    PROFILE --> UI
+    LABS --> COMPUTE
 ```
 
----
+At the system level, the project is separated into fluid, bucket, rope/rig, surface-film, environment, camera, UI/profile, rendering, and experimental solver modules.
 
-# 3. الميزات والخصائص
-
-## محاكاة SPH على الـGPU
-
-تنفذ مراحل بناء الشبكة، إيجاد الجيران، الكثافة، الضغط، اللزوجة، XSPH، التوتر السطحي، التكامل والتصادم على GPU، ما يرفع القدرة على التعامل مع أعداد جسيمات أكبر من تنفيذ CPU تقليدي.
-
-## أنواع متعددة من الطلاء
-
-يدعم النظام Presets مثل:
-
-- Extra Watery
-- Watery
-- Flowing
-- Normal
-- Thick
-- Hybrid
-- Line Painting
-
-كل نوع يضبط مجموعة مترابطة من الخصائص الفيزيائية والبصرية.
-
-## أسطح متعددة
-
-يدعم Canvas وPaper وWood وMetal، مع اختلاف الالتصاق والخشونة والاحتكاك والامتصاص والجفاف والانزلاق.
-
-## محاكاة فيلم الطلاء
-
-بعد الاصطدام تتحول الكتلة إلى Surface Film يحاكي:
-
-- البرك والانزلاق.
-- الآثار المتروكة خلف السيل.
-- السماكة والرطوبة.
-- الامتصاص والجفاف.
-- إعادة الترطيب.
-- خلط الألوان.
-- الانسكاب من الحواف.
-
-## نظام الحبل والدلو
-
-- حبل مرن مع تخميد والتواء.
-- طول قابل للتعديل لحظيًا.
-- حزام تعليق ثلاثي.
-- نواس ودوران وإطلاق مداري.
-- تحكم يدوي بالدلو.
-- Pause مستقل.
-- تصادم الدلو مع سطح الرسم.
-
-## مخارج متعددة
-
-- فتحة سفلية.
-- Top Spill.
-- Multi-Outlet definitions.
-- محرر Runtime للمخارج.
-- فتح وإغلاق وتعديل موضع وحجم المخرج.
-
-## Continuous Nozzle وControlled Stream Emitter
-
-يوفران تنظيم السيل قرب الفتحة عبر التحكم بالطول والقوة والسرعة والتخميد الجانبي وتأثير حركة الدلو.
-
-## خلط الألوان
-
-يدعم ألوانًا جاهزة ومخصصة، وخلطًا على اللوحة وداخل الدلو بصورة اختيارية، مع الاحتفاظ بلون الجسيم بعد خروجه.
-
-## الجفاف والامتصاص وإعادة الترطيب
-
-يتضمن النموذج إعدادات لـDrying Rate وAbsorption وDry Film Lock وWet-on-Dry Mixing وOld Film Resistance وOvercoat Retention.
-
-> النموذج تعليمي وفني، وليس نموذجًا كيميائيًا صناعيًا كاملًا لكل أنواع الدهانات.
-
-## الانسكاب البيئي
-
-- خروج الطلاء من حافة اللوحة.
-- شلال بصري إلى السطح السفلي.
-- آثار على السطح الأبيض.
-- وصول الطلاء إلى الأرض.
-- إمكانية مسح آثار البيئة.
-
-## استيراد صورة كطلاء
-
-يدعم Exact وArtistic وDripping، مع التحكم بعدد الطبقات والسماكة والرطوبة وكثافة الخطوط والقطرات والبذرة العشوائية.
-
-## البروفايلات والحفظ
-
-- 20 خانة.
-- Settings Save وFull State Save.
-- وصفات مستقلة لكل نوع طلاء وسطح.
-- بروفايلات جاهزة.
-- Versioned JSON migration.
-
-## الكاميرا
-
-Perspective وFront وSide وTop وFree Camera، مع حركة سينمائية وتسارع وتباطؤ ناعمين.
-
-## التشخيص
-
-- FPS وإحصاءات Runtime.
-- الكثافة والضغط والجيران والسرعة والتسارع.
-- Memory profiling tool.
-- Missing Script Cleaner.
-- أدوات Editor لإنشاء وفتح المشاهد.
-
-## مختبرات مستقلة
-
-- Direct Cohesive SPH.
-- High-Count GPU particles.
-- Hybrid Million Particle Lab.
-- Legacy Fluid Lab.
-- Million PBF Stable Lab.
-
-## الذكاء الاصطناعي والأتمتة
-
-لا يستخدم المشروع Machine Learning أوخدمات AI في المحاكاة. الأتمتة الموجودة تقليدية وتشمل إنشاء الموارد وتطبيق البروفايلات وترحيل الحفظ وإدارة Buffers وMeshes وMaterials.
+> **Engineering note:** several individual controller/solver classes are still large and would benefit from further refactoring into smaller services/components. This is one of the main code-quality improvements planned for a future iteration.
 
 ---
 
-# 4. التقنيات المستخدمة
+## Project snapshot
 
-| التقنية | الدور | سبب الاختيار |
-|---|---|---|
-| Unity 2022.3.62f3 LTS | المحرك الرئيسي | الاستقرار ودعم Compute Shaders |
-| C# | Runtime وEditor tooling | التكامل الأصلي مع Unity |
-| HLSL Compute Shaders | الفيزياء المتوازية | تنفيذ كثيف على GPU |
-| URP 14.0.12 | الرندر | توازن الجودة والأداء |
-| Indirect GPU Rendering | رسم الجسيمات | تقليل نقل البيانات CPU/GPU |
-| SPH | محاكاة السائل | مناسب للسوائل الحرة الجسيمية |
-| PBF | مختبرات عالية الاستقرار | تحسين الاستقرار في بعض السيناريوهات |
-| Mass–Spring | الحبل | نموذج مباشر ومرن |
-| RenderTexture / ComputeBuffer | تخزين الفيلم والجسيمات | إبقاء البيانات على GPU |
-| JSON Serialization | البروفايلات | قابلية النقل والإصدار |
-| Unity IMGUI | الواجهة البحثية | سرعة التطوير وكثرة أدوات الضبط |
-| Unity Recorder | التسجيل | توثيق التجارب |
-| Git / GitHub | إدارة المصدر | التتبع والتعاون والنشر |
+Current uploaded snapshot:
 
-## Backend / Frontend / Database
+| Item | Count |
+|---|---:|
+| C# source files | 34 |
+| HLSL compute shaders | 8 |
+| Render shaders | 13 |
+| Compute kernels | 89 |
+| Unity scenes | 6 |
+| C# lines | ~34K |
+| Compute-shader lines | ~9K |
 
-هذا تطبيق Unity Standalone وليس تطبيق Web:
-
-- **Backend:** لا توجد خدمة منفصلة؛ المنطق داخل Unity.
-- **Frontend:** واجهة Runtime داخل Unity.
-- **Database:** لا توجد قاعدة بيانات؛ الحفظ محلي بصيغة JSON.
-- **Environment Variables:** غير مطلوبة.
-- **AI Service:** غير مستخدمة.
-- **Deployment:** Unity Standalone Build.
+The counts are included only to communicate scope; they are not intended as a measure of code quality.
 
 ---
 
-# 5. التحديات التقنية أثناء التطوير
+## Main scenes
 
-## رفع عدد الجسيمات
-
-تم نقل الحسابات إلى GPU، واستخدام Spatial Grid، وبناء مشاهد High-Count ومشاهد مليونية منفصلة لتجنب تحميل المشهد الرئيسي كل تعقيد التجارب البحثية.
-
-## استقرار السائل داخل الدلو
-
-ظهرت مشكلات مثل التطاير والانضغاط والاهتزاز. تمت معالجتها بمعايرة Rest Density وPressure Stiffness، وإضافة XSPH، ووضع حدود للسرعة والتسارع، وتحسين تصادم الوعاء، وبناء مختبر PBF مستقل.
-
-## السيل الخارج من الفتحة
-
-ظهرت مشكلات التقطيع والكتل المنفصلة وتأثر السيل بحركة الدلو. تم تطوير Continuous Nozzle وControlled Stream Emitter ورندر سيل مستقل، مع الاحتفاظ بالمسار الأكثر استقرارًا في النسخة النهائية.
-
-## تحويل الجسيمات إلى فيلم
-
-إبقاء كل الجسيمات حيّة فوق اللوحة كان مكلفًا وغير مناسب للجفاف والامتصاص، لذلك تم اعتماد معمارية هجينة:
-
-```text
-3D SPH particles in bucket and air
-               ↓
-2D GPU film on the painting surface
-```
-
-## اختلاف الأسطح
-
-تم اعتماد وصفات مستقلة لكل زوج من Paint Type وSurface Type بدل استخدام قيم عامة لا تناسب جميع الخامات.
-
-## حفظ البروفايلات دون تلوث القيم
-
-تم فصل Settings Save عن Full State، وإضافة إصدار لمخطط JSON، وفصل القيم المكانية عن وصفات الطلاء، وإضافة ترحيل تلقائي للمكتبة.
-
-## التعرق والشرائط غير الطبيعية
-
-تمت إضافة Bridge modes والتحكم بعدد الوصلات وعمرها وعرضها، وجعل Flow Variation اختيارية، وإنشاء بروفايلات مستقرة ومحافظة.
-
-## الأداء مقابل الشكل
-
-تم استخدام Indirect Rendering وVisual Copies اختيارية وSmooth Fluid Renderer اختياري، مع إعدادات URP Performant وBalanced وHigh Fidelity.
-
-## أخطاء Compute Shader
-
-تم التعامل مع أخطاء Kernels وBuffers عبر توحيد الأسماء والربط الصريح وإضافة Fallbacks وتعطيل الميزات غير المتاحة بدل تعطيل المشهد كاملًا.
-
----
-
-# 6. التثبيت والتشغيل
-
-## المتطلبات
-
-- Unity Hub.
-- Unity Editor **2022.3.62f3**.
-- Visual Studio 2022 أوJetBrains Rider.
-- GPU يدعم Compute Shaders وDirectX 11.
-- Windows 10/11 64-bit هو المسار الأساسي المختبر.
-- 16 GB RAM أوأكثر مفضلة للتطوير.
-
-## الاستنساخ
-
-```bash
-git clone https://github.com/<your-username>/<repository-name>.git
-cd <repository-name>
-```
-
-## فتح المشروع
-
-1. افتح Unity Hub.
-2. اختر **Add project from disk**.
-3. حدد المجلد الذي يحتوي `Assets` و`Packages` و`ProjectSettings`.
-4. افتحه باستخدام Unity `2022.3.62f3`.
-5. انتظر اكتمال Import وShader Compilation.
-
-## المشهد الرئيسي
-
-```text
-Assets/Scenes/PaintingSystem/SPH_GPU_IntegratedRig_LinePainting.unity
-```
-
-ثم اضغط Play.
-
-## البناء
-
-من Unity:
-
-```text
-File → Build Settings / Build Profiles
-```
-
-اختر Windows, Mac, Linux Standalone، ثم x86_64، وتأكد من وجود المشهد الرئيسي في Build Settings.
-
-## المشاهد المسجلة في Build Settings
-
-```text
-Assets/Scenes/PaintingSystem/SPH_GPU_IntegratedRig_LinePainting.unity
-Assets/Scenes/FluidLabs/SPH_GPU_HybridMillionFluidLab.unity
-Assets/Scenes/FluidLabs/SPH_GPU_DirectStableFluidLab.unity
-Assets/Scenes/FluidLabs/SPH_GPU_HighCountFluidLab.unity
-Assets/Scenes/FluidLabs/MillionPBFStableLab/SPH_GPU_MillionPBFStableLab.unity
-```
-
-## Environment Variables
-
-لا يحتاج المشروع إلى `.env` أوEnvironment Variables.
-
-## ملفات Runtime المحلية
-
-```text
-Application.persistentDataPath/PaintSimulationProfiles.json
-```
-
-على Windows يكون المسار عادة داخل:
-
-```text
-C:\Users\<User>\AppData\LocalLow\<CompanyName>\<ProductName>\
-```
-
-## التشغيل من سطر الأوامر
-
-```powershell
-"C:\Program Files\Unity\Hub\Editor\2022.3.62f3\Editor\Unity.exe" `
-  -projectPath "C:\Path\To\Painting-Simulation-Engine"
-```
-
-لا يوجد Build Script آلي موحد مضمّن حاليًا؛ البناء الاعتيادي يتم من واجهة Unity.
-
----
-
-# 7. الاختبارات والتحقق
-
-## الحالة الحالية
-
-يعتمد المشروع أساسًا على اختبارات Runtime يدوية، ومشاهد مختبرية مستقلة، وإحصاءات داخلية، ومقارنة بصرية، واختبارات أداء على أعداد مختلفة من الجسيمات. لا توجد حاليًا حزمة شاملة من Unit Tests أوIntegration Tests باستخدام Unity Test Framework.
-
-## ما الذي يتم اختباره؟
-
-### السائل
-
-- استقرار الكثافة والضغط.
-- الجسيمات قرب الجدران.
-- خروج الطلاء من الفتحة.
-- التوتر السطحي والتماسك.
-- مستويات أعداد الجسيمات.
-
-### السطح
-
-- الاصطدام وعدم اختراق اللوحة.
-- الانتشار والانزلاق.
-- اختلاف الخامات.
-- الجفاف والامتصاص.
-- خلط الألوان.
-- الانسكاب من الحواف.
-
-### المنظومة
-
-- الحبل وPause/Resume.
-- إعادة تعبئة الدلو.
-- تبديل البروفايلات.
-- الحفظ والاستعادة.
-- الكاميرا.
-- Standalone Build على DX11.
-
-## إحصاءات Runtime
-
-اضغط `F1` لعرض FPS ومتوسط الكثافة والضغط والجيران والسرعة والتسارع ونسبة جسيمات السطح.
-
-## اختبارات مستقبلية مقترحة
-
-- EditMode tests للـProfile Serialization.
-- PlayMode tests لتبديل البروفايلات.
-- GPU readback tests لحفظ الكتلة.
-- Regression tests للكثافة والضغط.
-- Snapshot tests للفيلم.
-- Tests لربط Kernels وBuffers.
-
----
-
-# 8. الأداء والتحسينات المستقبلية
-
-## نقاط القوة الحالية
-
-- تنفيذ الحسابات المكلفة على GPU.
-- استخدام ComputeBuffers وIndirect Rendering.
-- فصل فيلم السطح عن الجسيمات.
-- مستويات جودة متعددة.
-- عدم إنشاء GameObject لكل جسيم.
-- مختبرات مستقلة للأعداد الكبيرة.
-
-## عوامل تؤثر في الأداء
-
-- عدد الجسيمات وSubsteps.
-- Smoothing Radius وكثافة الجيران.
-- Film Resolution.
-- Visual Copies.
-- Smooth Fluid Rendering.
-- عدد المخارج.
-- الظلال وجودة URP.
-- عمليات GPU Readback التشخيصية.
-
-## تحسينات مستقبلية
-
-### الفيزياء
-
-- Adaptive Time Stepping.
-- Particle splitting/merging.
-- Affine أوCorotational viscosity.
-- Anisotropic kernels.
-- نموذج Dry Base + Active Wet Film.
-- Rewet يعتمد على نوع المادة الكيميائي.
-- اختبارات حفظ الكتلة والطاقة.
-
-### الرندر
-
-- Screen-space fluid surface.
-- GPU marching cubes.
-- Temporal smoothing.
-- Motion vectors.
-- Refraction وthickness absorption أفضل.
-- LOD للجسيمات البعيدة.
-
-### الأسطح
-
-- طبقة جافة منفصلة عن الفيلم الرطب.
-- Wet-over-dry وThick-over-dry أكثر واقعية.
-- خصائص سطحية مبنية على Textures.
-- Floor Puddle Film متقدم.
-- حفظ الرسمة بصيغة GPU-friendly.
-
-### الأدوات
-
-- Unity Test Framework.
-- Benchmark scene آلي.
-- CSV performance exporter.
-- Profile comparison tool.
-- رسوم للكثافة والضغط.
-- GitHub Actions للبناء.
-
-### VR
-
-- VR Controllers.
-- إمساك الدلو وتحريكه.
-- World-Space UI.
-- Haptic feedback.
-
----
-
-# 9. الجانب الأكاديمي
-
-هذا المشروع **أكاديمي بالكامل** وتم تطويره لدراسة المحاكاة العددية والرسوميات الفورية والتفاعل الفيزيائي داخل Unity.
-
-## النتيجة الأكاديمية
-
-حقق المشروع **العلامة الكاملة** في التقييم الأكاديمي.
-
-## أسباب تميزه
-
-- Solver جسيمي مخصص بدل الاعتماد على Asset جاهز فقط.
-- GPU Compute Shaders.
-- دمج SPH والحبل والسطح والرندر والواجهة.
-- مختبرات مقارنة مستقلة.
-- دعم أعداد جسيمات متعددة ومشاهد مليونية.
-- واجهة تجريبية واسعة وقابلة للحفظ.
-- معاملة الطلاء كمادة تختلف عن الماء.
-- ربط البحث النظري بنتيجة تفاعلية قابلة للعرض.
-- إعادة هيكلة وتحسينات متكررة بدل الاكتفاء بنموذج أولي.
-
-## القيمة التعليمية
-
-يصلح المشروع لدراسة Fluid Simulation وGPU Computing وNumerical Stability وSpatial Hashing وRendering Pipelines وSerialization وPerformance Profiling وتصميم الأنظمة الهجينة.
-
----
-
-<a id="contributors"></a>
-
-# Contributors
-
-<table>
-  <tr>
-    <td align="center">
-      <a href="https://github.com/Humamdaa">
-        <img
-          src="https://github.com/Humamdaa.png"
-          width="100px"
-          alt="Humamdaa"
-        />
-        <br />
-        <strong>Humamdaa</strong>
-      </a>
-      <br />
-      Project Contributor
-    </td>
-  </tr>
-</table>
-
----
-
-# 10. الخاتمة
-
-يمثل **GPU SPH Painting Simulation Engine** نواة بحثية وعملية لمحاكاة الطلاء في الزمن الحقيقي، من حركة السائل داخل الدلو إلى ترسيبه وجريانه وجفافه فوق الأسطح.
-
-قيمة المشروع لا تكمن في النتيجة البصرية فقط، بل في المعمارية التي تجمع Solver جسيميًا على GPU، ونظام حبل ودلو، وSurface Film Simulation، وبروفايلات مواد وأسـطح، وبيئة انسكاب، وأدوات حفظ وتشخيص.
-
-يمكن تطويره مستقبلًا ليصبح تجربة VR تعليمية، أوأداة فن رقمي، أومختبر سوائل لزجة، أونواة لتطبيقات تدريب وألعاب وVisualization أكبر.
-
----
-
-# هيكل المجلدات
-
-```text
-Painting-Simulation-Engine/
-├── Assets/
-│   ├── PaintSystem/
-│   ├── Resources/SPH/
-│   │   ├── *.compute
-│   │   ├── *.shader
-│   │   └── Embedded profile JSON files
-│   ├── Scenes/
-│   │   ├── PaintingSystem/
-│   │   └── FluidLabs/
-│   ├── Scripts/
-│   │   ├── Editor/
-│   │   └── Runtime/
-│   │       ├── PaintingSystem/
-│   │       │   ├── Bucket/
-│   │       │   ├── Camera/
-│   │       │   ├── Canvas/
-│   │       │   ├── Environment/
-│   │       │   ├── RopeAndRig/
-│   │       │   └── UI/
-│   │       ├── FluidLabs/
-│   │       └── Shared/
-│   └── Settings/
-├── Packages/
-├── ProjectSettings/
-├── .gitignore
-└── README.md
-```
-
----
-
-# المشاهد المتاحة
-
-| المشهد | الغرض |
+| Scene | Purpose |
 |---|---|
-| `SPH_GPU_IntegratedRig_LinePainting` | التجربة الرئيسية للدلو والحبل والطلاء والأسطح |
-| `SPH_GPU_DirectStableFluidLab` | اختبار SPH مباشر ومستقر |
-| `SPH_GPU_HighCountFluidLab` | اختبار أعداد جسيمات مرتفعة |
-| `SPH_GPU_HybridMillionFluidLab` | نظام هجين للمليون جسيم |
-| `SPH_GPU_MillionPBFStableLab` | مختبر PBF عالي العدد |
-| Legacy Fluid Lab | مقارنة مع النظام الأقدم |
+| `SPH_GPU_IntegratedRig_LinePainting` | Main bucket + rope + paint + surface experience |
+| `SPH_GPU_DirectStableFluidLab` | Direct cohesive SPH tuning and comparison |
+| `SPH_GPU_HighCountFluidLab` | Experimental particle-scaling scene |
+| `SPH_GPU_HybridMillionFluidLab` | Experimental carrier/tracer visualization scene |
+| `SPH_GPU_MillionPBFStableLab` | Experimental PBF comparison scene |
+| Legacy Fluid Lab | Earlier solver/reference scene |
+
+Five of these scenes are currently enabled in Unity Build Settings; the legacy scene is retained as a comparison/reference scene. Some development scene names reference very large particle budgets; those names reflect experimentation targets and should not be interpreted as validated real-time performance claims.
 
 ---
 
-# اختصارات التحكم
+## Technology stack
 
-> قد تتغير بعض الاختصارات إذا تم تعديل القيم Serialized داخل Inspector.
-
-| الاختصار | الوظيفة |
+| Technology | Role |
 |---|---|
-| `U` | إظهار/إخفاء لوحة التحكم |
-| `H` | إظهار/إخفاء المساعدة |
-| `F1` | إظهار إحصاءات SPH |
-| `Enter` | تطبيق إعدادات التبويب |
-| `P` | إيقاف/استئناف الحبل |
-| `R` | التحكم اليدوي بالدلو |
-| `Ctrl + R` | إعادة تشغيل السائل |
-| `W A S D` | حركة الكاميرا أوالدلو حسب الوضع |
-| الأسهم | إمالة الدلو في الوضع اليدوي |
-| `Space` | موجة داخل السائل |
-| `Shift + Space` | موجة قوية |
-| `B` | فتح/إغلاق المخرج السفلي |
-| `T` | Top Spill |
-| `V` | التنقل بين زوايا الكاميرا |
-| `F` | تغيير وضع الكاميرا |
-| `F2` | Perspective |
-| `F3` | Front |
-| `F4` | Side |
-| `F5` | Top |
-| `1..8` | تغيير مستوى/عدد الجسيمات بحسب المشهد |
-| `9` | نافذة الإعدادات الثانوية |
-| `J` | Kick للحبل |
-| `L` | Launch preset |
-| `K` | Launch without spin |
-| `I` | Spin only |
+| Unity 2022.3.62f3 LTS | Runtime/editor platform |
+| URP 14.0.12 | Rendering pipeline |
+| C# | Runtime logic, interaction, editor tools |
+| HLSL Compute Shaders | Fluid, surface-film, and runoff simulation |
+| ComputeBuffer / RenderTexture | GPU-resident simulation state |
+| Indirect GPU Rendering | GPU-efficient particle rendering |
+| SPH | Primary particle-fluid model |
+| PBF | Experimental solver comparison scene |
+| Mass-Spring model | Rope/bucket rig |
+| JSON serialization | Runtime profile persistence |
+| Unity Recorder | Demo/experiment capture |
+
+No external ML/AI service is used by the simulation at runtime.
 
 ---
 
-# ملاحظات مهمة
+## Runtime controls
 
-## الدقة العلمية
-
-المشروع نموذج عددي تفاعلي لأغراض أكاديمية وفنية. بعض القيم تمت معايرتها لتحقيق توازن بين الواقعية والاستقرار والأداء، لذلك لا ينبغي استخدامه بدل برامج CFD الصناعية المعتمدة.
-
-## تعديل Compute Shaders
-
-أي تغيير في Kernels أوStructuredBuffers يجب أن يترافق مع تحديث الربط في C#، وإلا قد تظهر أخطاء مثل:
+The current build contains many runtime shortcuts. Key examples include:
 
 ```text
-Kernel at index is invalid
-Property (...) at kernel index (...) is not set
+U                 Toggle main control panel
+H                 Toggle help
+F1                Toggle runtime SPH statistics
+Enter             Apply current tab
+Shift + Enter     Apply all editable tabs
+
+Mouse drag/release  Launch/control bucket interaction
+L / K / I           Orbit+spin / orbit / spin presets
+P                   Pause rope/rig
+Space               Weak wave
+Shift + Space       Strong wave
+B                   Open/close all outlets
+Y                   Outlet editor
+
+V                   Cycle fixed views
+F                   Fixed / Follow / Free camera
+F2..F5              Direct camera views
+Alt + S             Normal / Cinematic free camera
+
+Alt + 1..4          Canvas / Wood / Metal / Paper
+Shift + 1..4        Blue / Red / Pink / Yellow
+Shift + C           Clear canvas
+Shift + X           Clear table/floor traces
 ```
 
-## ملفات Unity التي لا ترفع إلى Git
+The in-app help panel should be treated as the authoritative shortcut reference as the control map evolves.
 
-```text
-Library/
-Temp/
-Obj/
-Logs/
-Build/
-Builds/
-UserSettings/
-.vs/
-```
+---
 
-## الترخيص
+## Validation and testing status
 
-لم يتم تحديد ترخيص مفتوح المصدر افتراضيًا. أضف ملف `LICENSE` قبل السماح بإعادة الاستخدام العام.
+Current validation is primarily based on:
 
-## المساهمة
+- Runtime manual tests.
+- Independent solver laboratory scenes.
+- Visual comparison.
+- Runtime performance statistics.
+- Density/pressure/neighbour/velocity diagnostics.
+- Solver scaling experiments, with the most reliable tested balance around ~100K particles and exploratory runs around ~250K.
+- Standalone Windows/DX11 testing.
 
-قبل Pull Request:
+The project does **not** currently contain a comprehensive Unity Test Framework suite or automated CI build pipeline.
 
-1. افتح المشروع بإصدار Unity الصحيح.
-2. اختبر المشهد الرئيسي.
-3. تأكد من خلو Console من الأخطاء.
-4. اختبر Build على DX11.
-5. وثّق أي تغيير في Compute Shader.
-6. لا تغيّر البروفايلات الجاهزة دون توضيح.
+Planned engineering improvements include:
+
+- EditMode tests for profile serialization.
+- PlayMode tests for profile/state restoration.
+- GPU readback regression checks.
+- Automated benchmark scenes.
+- CSV performance export.
+- CI build validation.
+
+---
+
+## Known limitations
+
+- The physics is tuned for interactive visual stability and artistic behavior, not industrial CFD accuracy.
+- Paint drying/absorption/rewetting are numerical approximations rather than full chemical material models.
+- Performance is highly dependent on GPU, particle budget, neighbour limits, film resolution, and rendering mode.
+- Experimental scaling scenes become progressively less responsive and less stable at larger particle budgets; they are not presented as benchmark claims.
+- The main UI and some solver classes are large and should be decomposed further for long-term maintainability.
+- Automated test coverage is currently limited.
+
+---
+
+## Repository / source availability
+
+The project is currently presented as a **portfolio showcase** while the full source remains private.
+
+This allows the project architecture, technical decisions, demos, and results to be reviewed without publishing the complete implementation. The full source is intentionally kept private for now; no open-source license is granted through this showcase repository.
+
+---
+
+## Academic context and contributions
+
+This project was developed as an academic team project at Damascus University.
+
+- **Fouad Dalloul — Primary developer and system integrator.** Led the implementation and later integration/refinement of the core simulation systems, including the GPU fluid/paint pipeline, surface-film behavior, runtime controls, material/preset systems, interaction, profiling/state features, and final technical integration.
+- **Humam Daas — Environment and project collaboration.** Contributed to the initial external room/environment setup and collaborated on the academic project.
+- **Malek Imam — Early rope prototype contribution.** Implemented an early version of the flexible-rope behavior; the rope/rig subsystem was substantially reworked and integrated during later development.
+
+The attribution above describes concrete contributions rather than assigning arbitrary percentages of ownership.
+
+---
+
+## Roadmap
+
+Potential future work:
+
+- Refactor the large control/solver classes into smaller services and feature modules.
+- Add automated regression and performance tests.
+- Improve screen-space fluid rendering.
+- Add adaptive time stepping.
+- Improve dry-film / wet-film material separation.
+- Add GPU-friendly painting export/import formats.
+- Add benchmark reports across several GPUs.
+- Explore VR interaction and haptic controls.
 
 ---
 
 <div align="center">
 
-**Academic GPU Fluid Simulation — Built with Unity, C#, HLSL, SPH and extensive iterative testing**
+**Built as an exploration of real-time GPU fluid simulation, numerical stability, interactive physics, and paint-surface behavior.**
 
 </div>
