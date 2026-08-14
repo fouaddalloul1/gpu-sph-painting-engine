@@ -18,7 +18,7 @@ A custom academic simulation engine that models paint from a moving bucket, thro
   <img src="media/hero-multicolor-result.png" alt="GPU SPH paint simulation result" width="900" />
 </p>
 
-> **Portfolio showcase:** the current source repository is private. A short demo video and selected technical breakdowns will be published here. The project is an educational real-time simulation, not an industrial CFD solver.
+> **Portfolio showcase:** the full source repository is currently private. A short demo video and selected technical breakdowns will be published here. The project is an educational real-time simulation, not an industrial CFD solver.
 
 ---
 
@@ -32,17 +32,6 @@ The screenshots below are current showcase captures from different project itera
   <img src="media/swinging-bucket-result.png" alt="Painting produced by the swinging bucket" width="48%" />
   <img src="media/environment-runoff.png" alt="Paint runoff from canvas to the environment" width="48%" />
 </p>
-
-Recommended final video sequence:
-
-1. Final paint result first.
-2. Bucket and rope motion.
-3. GPU liquid leaving one or more outlets.
-4. Impact and conversion to a surface film.
-5. Different paint/surface presets.
-6. Edge runoff to the support surface and floor.
-7. Image-to-paint import and profile/state saving.
-8. Runtime statistics, diagnostics, and experimental solver scenes.
 
 ---
 
@@ -266,13 +255,9 @@ Profiles are versioned and stored locally using JSON, while full film snapshots 
 
 ## Experimental solver scenes
 
-The repository snapshot also contains separate solver scenes created during development for tuning, comparison, and scaling experiments. These scenes are **secondary engineering experiments**, not headline performance benchmarks for the painting system.
+Separate solver scenes were created during development for tuning, comparison, and scaling experiments. They are **secondary engineering experiments**, not headline performance benchmarks for the painting system.
 
-In the current tested build:
-
-- Around **~100K particles** gave the best balance of responsiveness and fluid stability in the heavier experimental scenes.
-- Around **~250K particles** was still useful for performance/scaling experiments on the tested hardware, but fluid stability was less consistent.
-- Larger code-configurable budgets exist in some experimental scenes, but they are intentionally **not presented as validated real-time performance claims**.
+On the tested hardware, around **~100K particles** provided the most practical balance between responsiveness and fluid stability. Larger particle counts remain experimental and are intentionally **not presented as validated real-time performance claims**.
 
 The main portfolio focus remains the integrated painting pipeline: GPU SPH inside the moving bucket and in the air, followed by the GPU surface-film simulation after impact.
 
